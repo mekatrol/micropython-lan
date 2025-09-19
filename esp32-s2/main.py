@@ -128,14 +128,22 @@ def blink(n=2, t=0.2):
 
 
 # Connect to WLAN
-print("Connecting to WLAN")
 wlan_init()
 
-print(f"IP: {wlan_ip}")
+if not wlan.isconnected():
+    # 10 slow blinks to indicate WLAN not connected
+    blink(n=10, t=0.5)
 
-print("Getting date/time")
+    # Reset device
+    machine.reset()
+
+# 5 quick blinks to indicate WIFI connected
+blink(n=5, t=0.2)
+
 refresh_date_time()
-print(f"Date/time: {rtc.datetime()}")
+
+# 3 slow blinks to indicate WIFI connected
+blink(n=3, t=0.5)
 
 sleep_time = 0.1
 while True:
@@ -147,6 +155,8 @@ while True:
     try:
         if wlan.isconnected():
             sleep_time = 0.1
+        else:
+            raise RuntimeError("Disconnected from WLAN")
     except:
         # If WLAN no longer connected so reset from begining
         machine.reset()
