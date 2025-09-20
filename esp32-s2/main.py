@@ -4,6 +4,7 @@ import network
 import select
 import struct
 from time import sleep, gmtime
+from umqtt.simple import MQTTClient
 from config import *
 
 try:
@@ -16,11 +17,17 @@ try:
 except ImportError:
     import asyncio
 
+DEBUGGING = True
 LED_PIN = 15
 SLEEP_MS = 10000  # 10 seconds
 
 # The NTP host can be configured at runtime by doing: ntptime.host = 'myhost.org'
 ntp_host = config["time_server"]
+
+mqtt_host = config["mqtt_host"]
+mqtt_clientid = config["mqtt_clientid"]
+mqtt_username = config["mqtt_username"]
+mqtt_password = config["mqtt_password"]
 
 # (date(2000, 1, 1) - date(1900, 1, 1)).days * 24*60*60
 # (date(1970, 1, 1) - date(1900, 1, 1)).days * 24*60*60
@@ -38,6 +45,15 @@ wlan.active(True)
 
 led = Pin(15, Pin.OUT)
 
+state = {"enabled": False, "on": False, "date_time": rtc.datetime()}
+
+
+def DEBUG_PRINT(s):
+    if not DEBUGGING:
+        return
+
+    print(s)
+
 
 def wlan_connect(ssid, pwd):
     global wlan
@@ -48,7 +64,6 @@ def wlan_connect(ssid, pwd):
     # Wait for connect or fail
     wait = 30
     while wait > 0:
-        print("Trying to connect to WLAN...")
         if wlan.isconnected():
             break
         wait -= 1
@@ -128,6 +143,7 @@ def blink(n=2, t=0.2):
 
 
 # Connect to WLAN
+DEBUG_PRINT("Initialising WLAN...")
 wlan_init()
 
 if not wlan.isconnected():
@@ -140,14 +156,35 @@ if not wlan.isconnected():
 # 5 quick blinks to indicate WIFI connected
 blink(n=5, t=0.2)
 
+DEBUG_PRINT("Initialising Date/Time...")
 refresh_date_time()
 
-# 3 slow blinks to indicate WIFI connected
+# 3 slow blinks to indicate date/time set
 blink(n=3, t=0.5)
+
+# Create MQTT client
+mqtt_client = MQTTClient(
+    client_id=mqtt_clientid,
+    server=mqtt_host,
+    user=mqtt_username,
+    password=mqtt_password,
+)
+
+mqtt_client.connect()
+
+# 3 really slow blinks to indicate MQTT connected
+blink(n=3, t=1)
+
+# Publish letterbox connected state
+mqtt_client.publish(f"{mqtt_clientid}/state", f"{state}")
 
 sleep_time = 0.1
 while True:
-    machine.lightsleep(SLEEP_MS)
+    # Only go into light sleep if not debugging
+    if not DEBUGGING:
+        machine.lightsleep(SLEEP_MS)
+    else:
+        sleep(SLEEP_MS / 1000)
 
     sleep_time = 0.5
 
@@ -163,3 +200,6 @@ while True:
 
     # 3 flashes to indicate WLAN state when woke from light sleep
     blink(n=3, t=sleep_time)
+
+    state["date_time"] = rtc.datetime()
+    mqtt_client.publish(f"{mqtt_clientid}/state", f"{state}")
