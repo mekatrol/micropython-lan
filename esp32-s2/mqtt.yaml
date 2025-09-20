@@ -1,0 +1,16 @@
+switch:
+  - unique_id: letterbox_enable
+    name: "Letterbox Enable"
+    state_topic: "letterbox/state"
+    value_template: "{{ 'ON' if value_json.enabled else 'OFF' }}"
+    command_topic: "letterbox/set"
+    command_template: >
+      {"enabled": {{ 'true' if value == 'ON' else 'false' }}}
+
+  - unique_id: letterbox_on
+    name: "Letterbox On"
+    state_topic: "letterbox/state"
+    value_template: "{{ 'ON' if value_json.on else 'OFF' }}"
+    command_topic: "letterbox/set"
+    command_template: >
+      {"on": {{ 'true' if value == 'ON' else 'false' }}}

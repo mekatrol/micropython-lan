@@ -108,22 +108,30 @@ def set_rtc_from_ntp():
     return True
 
 
-def mqtt_on_msg(topic, msg):
-    # topic and msg are bytes
-    dprint("MQTT RX:", topic, msg)
+def mqtt_publish(client, topic, data):
+    # JSON -> bytes
+    payload = json.dumps(data).encode()
+    client.publish(topic, payload)
 
-    try:
-        data = json.loads(msg.decode())  # parse to dict
-    except Exception as e:
-        dprint("JSON parse error:", e)
-        return
 
-    if "enabled" in data:
-        state["enabled"] = bool(data["enabled"])
-    if "on" in data:
-        state["on"] = bool(data["on"])
+def mqtt_make_on_msg(client):
+    def mqtt_on_msg(topic, msg):
+        dprint("MQTT:", topic, msg)
+        try:
+            data = json.loads(msg.decode())
+        except Exception as e:
+            dprint("JSON parse error:", e)
+            return
 
-    led.value(1 if state["enabled"] else 0)
+        if "enabled" in data:
+            state["enabled"] = bool(data["enabled"])
+        if "on" in data:
+            state["on"] = bool(data["on"])
+
+        led.value(1 if state["enabled"] else 0)
+        mqtt_publish(client, TOPIC_STATE, state)  # uses captured client
+
+    return mqtt_on_msg
 
 
 # ---------- Wi-Fi ----------
@@ -160,7 +168,7 @@ def mqtt_connect():
         password=mqtt_password,
         keepalive=KEEPALIVE_S,
     )
-    c.set_callback(mqtt_on_msg)
+    c.set_callback(mqtt_make_on_msg(c))
     c.connect()
     c.subscribe(TOPIC_SET, qos=0)
     return c
@@ -182,12 +190,6 @@ async def mqtt_service(client):
             last_ping = now_ms()
 
         await asyncio.sleep_ms(20)
-
-
-def mqtt_publish(client, topic, data):
-    # JSON -> bytes
-    payload = json.dumps(data).encode()
-    client.publish(topic, payload)
 
 
 # ---------- 1 Hz Tick ----------
