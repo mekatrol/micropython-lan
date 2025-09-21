@@ -28,7 +28,7 @@ except ImportError:
 # ---------- Config ----------
 DEBUGGING = True
 LED_PIN = 15
-STRING_LED_PIN = 3
+STRING_LED_PIN = 5
 SLEEP_LED_MS = 50  # brief indicator blinks
 
 from config import *
