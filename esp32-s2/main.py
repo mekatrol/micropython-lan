@@ -12,7 +12,7 @@ from time import gmtime
 from machine import Pin
 import network
 import select, struct
-from umqtt.simple import MQTTClient
+from mqtt import MQTTClient
 import ujson as json
 
 try:
@@ -28,6 +28,7 @@ except ImportError:
 # ---------- Config ----------
 DEBUGGING = True
 LED_PIN = 15
+STRING_LED_PIN = 3
 SLEEP_LED_MS = 50  # brief indicator blinks
 
 from config import *
@@ -48,6 +49,7 @@ NTP_DELTA = 3155673600 if gmtime(0)[0] == 2000 else 2208988800
 rtc = machine.RTC()
 wlan = network.WLAN(network.STA_IF)
 led = Pin(LED_PIN, Pin.OUT)
+led_string = Pin(STRING_LED_PIN, Pin.OUT)
 
 state = {"enabled": False, "on": False, "date_time": rtc.datetime()}
 
@@ -129,6 +131,7 @@ def mqtt_make_on_msg(client):
             state["on"] = bool(data["on"])
 
         led.value(1 if state["enabled"] else 0)
+        led_string.value(1 if state["on"] else 0)
         mqtt_publish(client, TOPIC_STATE, state)  # uses captured client
 
     return mqtt_on_msg
